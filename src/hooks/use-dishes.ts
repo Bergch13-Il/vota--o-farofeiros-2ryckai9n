@@ -1,104 +1,97 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import { Dish, EventType } from '@/types'
+import * as api from '@/lib/mock-api'
 
-const getInitialDishes = (eventType: EventType): Dish[] => {
+const getVotedDishesFromStorage = (eventType: EventType): string[] => {
   try {
-    const item = window.localStorage.getItem(`dishes_${eventType}`)
-    return item ? JSON.parse(item) : []
+    const key = `voted-dishes-${eventType}`
+    const stored = localStorage.getItem(key)
+    return stored ? JSON.parse(stored) : []
   } catch (error) {
-    console.error(error)
+    console.error('Failed to get voted dishes from storage', error)
     return []
   }
 }
 
-const getInitialVotedDishes = (eventType: EventType): string[] => {
+const saveVotedDishesToStorage = (eventType: EventType, ids: string[]) => {
   try {
-    const item = window.localStorage.getItem(`voted_dishes_${eventType}`)
-    return item ? JSON.parse(item) : []
+    const key = `voted-dishes-${eventType}`
+    localStorage.setItem(key, JSON.stringify(ids))
   } catch (error) {
-    console.error(error)
-    return []
+    console.error('Failed to save voted dishes to storage', error)
   }
 }
 
 export const useDishes = (eventType: EventType) => {
-  const [dishes, setDishes] = useState<Dish[]>(() =>
-    getInitialDishes(eventType),
-  )
+  const [dishes, setDishes] = useState<Dish[]>([])
+  const [isLoading, setIsLoading] = useState(true)
   const [votedDishes, setVotedDishes] = useState<string[]>(() =>
-    getInitialVotedDishes(eventType),
+    getVotedDishesFromStorage(eventType),
   )
 
-  useEffect(() => {
+  const fetchDishes = useCallback(async () => {
     try {
-      const sortedDishes = [...dishes].sort((a, b) => b.votes - a.votes)
-      window.localStorage.setItem(
-        `dishes_${eventType}`,
-        JSON.stringify(sortedDishes),
-      )
+      const fetchedDishes = await api.getDishes(eventType)
+      setDishes(fetchedDishes)
     } catch (error) {
-      console.error(error)
+      console.error(`Failed to fetch ${eventType} dishes`, error)
+    } finally {
+      setIsLoading(false)
     }
-  }, [dishes, eventType])
+  }, [eventType])
 
   useEffect(() => {
-    try {
-      window.localStorage.setItem(
-        `voted_dishes_${eventType}`,
-        JSON.stringify(votedDishes),
-      )
-    } catch (error) {
-      console.error(error)
-    }
+    fetchDishes()
+    const interval = setInterval(fetchDishes, 5000) // Poll every 5 seconds
+    return () => clearInterval(interval)
+  }, [fetchDishes])
+
+  useEffect(() => {
+    saveVotedDishesToStorage(eventType, votedDishes)
   }, [votedDishes, eventType])
 
   const addDish = useCallback(
-    (dishName: string): { success: boolean; message: string } => {
-      const trimmedName = dishName.trim()
-      if (
-        dishes.some(
-          (dish) => dish.name.toLowerCase() === trimmedName.toLowerCase(),
-        )
-      ) {
-        return { success: false, message: 'Este prato já foi sugerido!' }
+    async (name: string) => {
+      const result = await api.addDish(eventType, name)
+      if (result.success) {
+        setDishes(result.dishes)
       }
-      const newDish: Dish = {
-        id: new Date().toISOString(),
-        name: trimmedName,
-        votes: 0,
-      }
-      setDishes((prevDishes) => [...prevDishes, newDish])
-      return { success: true, message: 'Prato sugerido com sucesso!' }
+      return { success: result.success, message: result.message }
     },
-    [dishes],
+    [eventType],
   )
 
   const voteForDish = useCallback(
-    (dishId: string) => {
-      if (votedDishes.includes(dishId)) {
-        return
-      }
+    async (id: string) => {
+      if (votedDishes.includes(id)) return
+
+      setVotedDishes((prev) => [...prev, id])
+      // Optimistic update
       setDishes((prevDishes) =>
-        prevDishes.map((dish) =>
-          dish.id === dishId ? { ...dish, votes: dish.votes + 1 } : dish,
-        ),
+        prevDishes
+          .map((dish) =>
+            dish.id === id ? { ...dish, votes: dish.votes + 1 } : dish,
+          )
+          .sort((a, b) => b.votes - a.votes || a.name.localeCompare(b.name)),
       )
-      setVotedDishes((prevVoted) => [...prevVoted, dishId])
+
+      const result = await api.voteForDish(eventType, id)
+      if (!result.success) {
+        // Revert optimistic update on failure
+        setVotedDishes((prev) => prev.filter((votedId) => votedId !== id))
+        fetchDishes() // Refetch to be sure
+      }
     },
-    [votedDishes],
+    [eventType, votedDishes, fetchDishes],
   )
 
-  const sortedDishes = [...dishes].sort((a, b) => b.votes - a.votes)
-  const winningDishId =
-    sortedDishes.length > 0 && sortedDishes[0].votes > 0
-      ? sortedDishes[0].id
-      : null
+  const winningDishId = useMemo(() => {
+    if (dishes.length === 0) return null
+    const maxVotes = Math.max(...dishes.map((d) => d.votes))
+    if (maxVotes === 0) return null
+    const winners = dishes.filter((d) => d.votes === maxVotes)
+    return winners.length === 1 ? winners[0].id : null
+  }, [dishes])
 
-  return {
-    dishes: sortedDishes,
-    votedDishes,
-    addDish,
-    voteForDish,
-    winningDishId,
-  }
+  return { dishes, votedDishes, addDish, voteForDish, winningDishId, isLoading }
 }

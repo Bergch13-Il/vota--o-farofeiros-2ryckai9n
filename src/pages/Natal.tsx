@@ -5,14 +5,21 @@ import { useToast } from '@/components/ui/use-toast'
 import { DishCard } from '@/components/DishCard'
 import { useDishes } from '@/hooks/use-dishes'
 import { TreePine } from 'lucide-react'
+import { DishCardSkeleton } from '@/components/DishCardSkeleton'
 
 const NatalPage = () => {
   const [newDishName, setNewDishName] = useState('')
-  const { dishes, votedDishes, addDish, voteForDish, winningDishId } =
-    useDishes('natal')
+  const {
+    dishes,
+    votedDishes,
+    addDish,
+    voteForDish,
+    winningDishId,
+    isLoading,
+  } = useDishes('natal')
   const { toast } = useToast()
 
-  const handleSuggestDish = () => {
+  const handleSuggestDish = async () => {
     if (newDishName.trim() === '') {
       toast({
         title: 'Erro',
@@ -21,12 +28,12 @@ const NatalPage = () => {
       })
       return
     }
-    const result = addDish(newDishName)
+    const result = await addDish(newDishName)
     toast({
       title: result.success ? 'Sucesso!' : 'Atenção',
       description: result.message,
       variant: result.success ? 'default' : 'destructive',
-      className: 'bg-success text-white',
+      className: result.success ? 'bg-success text-white' : '',
     })
     if (result.success) {
       setNewDishName('')
@@ -74,7 +81,13 @@ const NatalPage = () => {
         <h2 className="text-3xl font-bold mb-8 text-center font-display">
           Pratos para o Natal
         </h2>
-        {dishes.length === 0 ? (
+        {isLoading ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+            {Array.from({ length: 4 }).map((_, index) => (
+              <DishCardSkeleton key={index} />
+            ))}
+          </div>
+        ) : dishes.length === 0 ? (
           <p className="text-center text-muted-foreground">
             Nenhum prato foi sugerido ainda. Seja o primeiro!
           </p>
