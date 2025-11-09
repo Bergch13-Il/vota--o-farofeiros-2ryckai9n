@@ -1,13 +1,28 @@
-/* Layout Component - A component that wraps the main content of the app
-   - Use this file to add a header, footer, or other elements that should be present on every page
-   - This component is used in the App.tsx file to wrap the main content of the app */
-
-import { Outlet } from 'react-router-dom'
+import { Outlet, useLocation } from 'react-router-dom'
+import { Header } from '@/components/Header'
+import { Footer } from '@/components/Footer'
+import { cn } from '@/lib/utils'
+import { useEffect, useState } from 'react'
 
 export default function Layout() {
+  const location = useLocation()
+  const [themeClass, setThemeClass] = useState('theme-natal')
+
+  useEffect(() => {
+    if (location.pathname.includes('/reveillon')) {
+      setThemeClass('theme-reveillon')
+    } else {
+      setThemeClass('theme-natal')
+    }
+  }, [location.pathname])
+
   return (
-    <main className="flex flex-col min-h-screen">
-      <Outlet />
-    </main>
+    <div className={cn('flex flex-col min-h-screen', themeClass)}>
+      <Header />
+      <main className="flex-grow">
+        <Outlet />
+      </main>
+      <Footer />
+    </div>
   )
 }
