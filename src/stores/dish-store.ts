@@ -141,4 +141,15 @@ export const dishStore = {
 
     return { success: false, message: 'Prato não encontrado.' }
   },
+
+  resetDishes: (
+    eventType: EventType,
+  ): { success: boolean; message: string } => {
+    const newState = {
+      ...state,
+      [eventType]: [],
+    }
+    setState(newState)
+    return { success: true, message: 'Votação reiniciada com sucesso!' }
+  },
 }

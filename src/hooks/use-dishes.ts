@@ -1,57 +1,50 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect } from 'react'
 import { Dish, EventType } from '@/types'
-import { dishStore } from '@/stores/dish-store'
 import * as api from '@/lib/mock-api'
+import { dishStore } from '@/stores/dish-store'
 
-const getVotedDishesFromSession = (eventType: EventType): string[] => {
+const getVotedDishesFromStorage = (eventType: EventType): string[] => {
   try {
-    const item = sessionStorage.getItem(`voted-${eventType}`)
+    const item = localStorage.getItem(`voted-dishes-${eventType}`)
     return item ? JSON.parse(item) : []
   } catch (error) {
-    console.error('Failed to read from sessionStorage', error)
+    console.error('Failed to read voted dishes from storage', error)
     return []
   }
 }
 
-const setVotedDishesInSession = (eventType: EventType, ids: string[]) => {
+const setVotedDishesInStorage = (eventType: EventType, ids: string[]) => {
   try {
-    sessionStorage.setItem(`voted-${eventType}`, JSON.stringify(ids))
+    localStorage.setItem(`voted-dishes-${eventType}`, JSON.stringify(ids))
   } catch (error) {
-    console.error('Failed to write to sessionStorage', error)
+    console.error('Failed to write voted dishes to storage', error)
   }
 }
 
 export const useDishes = (eventType: EventType) => {
   const [dishes, setDishes] = useState<Dish[]>([])
-  const [isLoading, setIsLoading] = useState(true)
   const [votedDishes, setVotedDishes] = useState<string[]>(() =>
-    getVotedDishesFromSession(eventType),
+    getVotedDishesFromStorage(eventType),
   )
+  const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
     const handleStateChange = (state: { natal: Dish[]; reveillon: Dish[] }) => {
-      setDishes(sortDishes(state[eventType]))
-      if (isLoading) {
-        setIsLoading(false)
-      }
-    }
-
-    const sortDishes = (dishesToSort: Dish[]): Dish[] => {
-      return [...dishesToSort].sort(
+      const sortedDishes = [...state[eventType]].sort(
         (a, b) => b.votes - a.votes || a.name.localeCompare(b.name),
       )
+      setDishes(sortedDishes)
+      setIsLoading(false)
     }
 
     const unsubscribe = dishStore.subscribe(handleStateChange)
+    handleStateChange(dishStore.getState())
 
-    return () => {
-      unsubscribe()
-    }
-  }, [eventType, isLoading])
+    return () => unsubscribe()
+  }, [eventType])
 
   const addDish = async (name: string) => {
-    const result = await api.addDish(eventType, name)
-    return result
+    return await api.addDish(eventType, name)
   }
 
   const voteForDish = async (id: string) => {
@@ -62,24 +55,29 @@ export const useDishes = (eventType: EventType) => {
     if (result.success) {
       const newVotedDishes = [...votedDishes, id]
       setVotedDishes(newVotedDishes)
-      setVotedDishesInSession(eventType, newVotedDishes)
+      setVotedDishesInStorage(eventType, newVotedDishes)
     }
     return result
   }
 
-  const winningDishId = useMemo(() => {
-    if (dishes.length === 0) return null
-    const maxVotes = Math.max(...dishes.map((d) => d.votes))
-    if (maxVotes === 0) return null
-    const winners = dishes.filter((d) => d.votes === maxVotes)
-    return winners.length > 0 ? winners[0].id : null
-  }, [dishes])
+  const resetDishes = async () => {
+    const result = await api.resetDishes(eventType)
+    if (result.success) {
+      setVotedDishes([])
+      setVotedDishesInStorage(eventType, [])
+    }
+    return result
+  }
+
+  const winningDishId =
+    dishes.length > 0 && dishes[0].votes > 0 ? dishes[0].id : null
 
   return {
     dishes,
     votedDishes,
     addDish,
     voteForDish,
+    resetDishes,
     winningDishId,
     isLoading,
   }

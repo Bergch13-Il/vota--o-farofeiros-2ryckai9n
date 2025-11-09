@@ -6,6 +6,7 @@ import { DishCard } from '@/components/DishCard'
 import { useDishes } from '@/hooks/use-dishes'
 import { TreePine } from 'lucide-react'
 import { DishCardSkeleton } from '@/components/DishCardSkeleton'
+import { ResetVoting } from '@/components/ResetVoting'
 
 const NatalPage = () => {
   const [newDishName, setNewDishName] = useState('')
@@ -14,6 +15,7 @@ const NatalPage = () => {
     votedDishes,
     addDish,
     voteForDish,
+    resetDishes,
     winningDishId,
     isLoading,
   } = useDishes('natal')
@@ -38,6 +40,15 @@ const NatalPage = () => {
     if (result.success) {
       setNewDishName('')
     }
+  }
+
+  const handleReset = async () => {
+    const result = await resetDishes()
+    toast({
+      title: 'Sucesso!',
+      description: result.message,
+      className: 'bg-success text-white',
+    })
   }
 
   return (
@@ -105,6 +116,10 @@ const NatalPage = () => {
           </div>
         )}
       </section>
+
+      {dishes.length > 0 && !isLoading && (
+        <ResetVoting onReset={handleReset} eventName="Natal" />
+      )}
     </div>
   )
 }

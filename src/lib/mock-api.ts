@@ -27,3 +27,11 @@ export const voteForDish = async (
   const result = dishStore.voteForDish(eventType, id)
   return { ...result }
 }
+
+export const resetDishes = async (
+  eventType: EventType,
+): Promise<{ success: boolean; message: string }> => {
+  await simulateDelay(300)
+  const result = dishStore.resetDishes(eventType)
+  return { ...result }
+}
