@@ -4,6 +4,7 @@ import {
   useEffect,
   useState,
   ReactNode,
+  useCallback,
 } from 'react'
 import { User, Session } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase/client'
@@ -12,11 +13,11 @@ import { getUserRole } from '@/services/users'
 interface AuthContextType {
   user: User | null
   session: Session | null
-  isAdmin: boolean
-  loading: boolean
-  signIn: (email: string, password: string) => Promise<{ error: any }>
   signUp: (email: string, password: string) => Promise<{ error: any }>
+  signIn: (email: string, password: string) => Promise<{ error: any }>
   signOut: () => Promise<{ error: any }>
+  loading: boolean
+  isAdmin: boolean
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -32,48 +33,53 @@ export const useAuth = () => {
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null)
   const [session, setSession] = useState<Session | null>(null)
-  const [isAdmin, setIsAdmin] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [isAdmin, setIsAdmin] = useState(false)
 
-  const signInAnonymously = async () => {
-    await supabase.auth.signInAnonymously()
-  }
+  const checkUserRole = useCallback(async (currentUser: User | null) => {
+    if (currentUser && !currentUser.is_anonymous) {
+      const role = await getUserRole(currentUser.id)
+      setIsAdmin(role === 'admin')
+    } else {
+      setIsAdmin(false)
+    }
+  }, [])
 
   useEffect(() => {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session)
-      setUser(session?.user ?? null)
+      const currentUser = session?.user ?? null
+      setUser(currentUser)
+      checkUserRole(currentUser)
       setLoading(false)
     })
 
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) {
         setSession(session)
-        setUser(session.user)
+        const currentUser = session.user
+        setUser(currentUser)
+        checkUserRole(currentUser)
+        setLoading(false)
       } else {
-        signInAnonymously()
+        supabase.auth.signInAnonymously().then(({ data, error }) => {
+          if (error) {
+            console.error('Error signing in anonymously:', error)
+          } else if (data.session) {
+            setSession(data.session)
+            const currentUser = data.session.user
+            setUser(currentUser)
+            checkUserRole(currentUser)
+          }
+          setLoading(false)
+        })
       }
-      setLoading(false)
     })
 
     return () => subscription.unsubscribe()
-  }, [])
-
-  useEffect(() => {
-    const checkUserRole = async () => {
-      if (user && !user.is_anonymous) {
-        const role = await getUserRole(user.id)
-        setIsAdmin(role === 'admin')
-      } else {
-        setIsAdmin(false)
-      }
-    }
-    if (user) {
-      checkUserRole()
-    }
-  }, [user])
+  }, [checkUserRole])
 
   const signUp = async (email: string, password: string) => {
     const redirectUrl = `${window.location.origin}/`
@@ -98,7 +104,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const signOut = async () => {
     const { error } = await supabase.auth.signOut()
     if (!error) {
-      await signInAnonymously()
+      await supabase.auth.signInAnonymously()
     }
     return { error }
   }
@@ -106,11 +112,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const value = {
     user,
     session,
-    isAdmin,
-    loading,
-    signIn,
     signUp,
+    signIn,
     signOut,
+    loading,
+    isAdmin,
   }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
