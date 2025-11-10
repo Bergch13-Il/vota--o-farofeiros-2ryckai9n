@@ -19,7 +19,7 @@ const ReveillonPage = () => {
     resetDishes,
     winningDishIds,
     isLoading,
-  } = useDishes('reveillon')
+  } = useDishes()
   const { isAdmin } = useAuth()
   const { toast } = useToast()
 

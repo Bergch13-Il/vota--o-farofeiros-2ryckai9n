@@ -19,7 +19,7 @@ const NatalPage = () => {
     resetDishes,
     winningDishIds,
     isLoading,
-  } = useDishes('natal')
+  } = useDishes()
   const { isAdmin } = useAuth()
   const { toast } = useToast()
 
