@@ -107,10 +107,25 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, [checkUserRole])
 
   const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({
+    if (user?.is_anonymous) {
+      await supabase.auth.signOut()
+    }
+
+    const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
     })
+
+    if (!error) {
+      if (data.session) {
+        setSession(data.session)
+      }
+      if (data.user) {
+        setUser(data.user)
+        await checkUserRole(data.user)
+      }
+    }
+
     return { error }
   }
 
