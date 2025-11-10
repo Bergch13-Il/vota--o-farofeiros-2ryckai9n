@@ -2,10 +2,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Crown, ThumbsUp } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { Dish } from '@/types'
+import { DishWithVotes } from '@/types'
 
 interface DishCardProps {
-  dish: Dish
+  dish: DishWithVotes
   onVote: (id: string) => void
   isVoted: boolean
   isWinner: boolean

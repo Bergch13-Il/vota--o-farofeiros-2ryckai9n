@@ -1,76 +1,95 @@
-import { useState, useEffect } from 'react'
-import { Dish, EventType } from '@/types'
-import * as api from '@/lib/mock-api'
-import { dishStore } from '@/stores/dish-store'
-
-const getVotedDishesFromStorage = (eventType: EventType): string[] => {
-  try {
-    const item = localStorage.getItem(`voted-dishes-${eventType}`)
-    return item ? JSON.parse(item) : []
-  } catch (error) {
-    console.error('Failed to read voted dishes from storage', error)
-    return []
-  }
-}
-
-const setVotedDishesInStorage = (eventType: EventType, ids: string[]) => {
-  try {
-    localStorage.setItem(`voted-dishes-${eventType}`, JSON.stringify(ids))
-  } catch (error) {
-    console.error('Failed to write voted dishes to storage', error)
-  }
-}
+import { useState, useEffect, useCallback, useMemo } from 'react'
+import { supabase } from '@/lib/supabase/client'
+import { DishWithVotes, EventType } from '@/types'
+import { useAuth } from '@/hooks/use-auth'
+import * as dishService from '@/services/dishes'
+import * as voteService from '@/services/votes'
 
 export const useDishes = (eventType: EventType) => {
-  const [dishes, setDishes] = useState<Dish[]>([])
-  const [votedDishes, setVotedDishes] = useState<string[]>(() =>
-    getVotedDishesFromStorage(eventType),
-  )
+  const { user } = useAuth()
+  const [dishes, setDishes] = useState<DishWithVotes[]>([])
+  const [votedDishes, setVotedDishes] = useState<string[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
-  useEffect(() => {
-    const handleStateChange = (state: { natal: Dish[]; reveillon: Dish[] }) => {
-      const sortedDishes = [...state[eventType]].sort(
-        (a, b) => b.votes - a.votes || a.name.localeCompare(b.name),
-      )
-      setDishes(sortedDishes)
-      setIsLoading(false)
-    }
+  const winningDishIds = useMemo(() => {
+    if (dishes.length === 0 || dishes[0].votes === 0) return []
+    const maxVotes = dishes[0].votes
+    return dishes.filter((d) => d.votes === maxVotes).map((d) => d.id)
+  }, [dishes])
 
-    const unsubscribe = dishStore.subscribe(handleStateChange)
-    handleStateChange(dishStore.getState())
-
-    return () => unsubscribe()
+  const fetchDishes = useCallback(async () => {
+    setIsLoading(true)
+    const data = await dishService.getDishesWithVotes(eventType)
+    setDishes(data)
+    setIsLoading(false)
   }, [eventType])
 
+  const fetchUserVotes = useCallback(async () => {
+    if (user) {
+      const userVotes = await voteService.getUserVotesForParty(
+        user.id,
+        eventType,
+      )
+      setVotedDishes(userVotes)
+    }
+  }, [user, eventType])
+
+  useEffect(() => {
+    fetchDishes()
+    fetchUserVotes()
+
+    const channel = supabase
+      .channel(`public:dishes:${eventType}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'dishes',
+          filter: `party_type=eq.${eventType}`,
+        },
+        () => fetchDishes(),
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'votes' },
+        () => {
+          fetchDishes()
+          fetchUserVotes()
+        },
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [eventType, fetchDishes, fetchUserVotes])
+
   const addDish = async (name: string) => {
-    return await api.addDish(eventType, name)
+    if (!user)
+      return {
+        success: false,
+        message: 'Você precisa estar logado para sugerir um prato.',
+      }
+    return await dishService.addDish(name, eventType, user.id)
   }
 
   const voteForDish = async (id: string) => {
-    if (votedDishes.includes(id)) {
-      return { success: false, message: 'Você já votou neste prato.' }
-    }
-    const result = await api.voteForDish(eventType, id)
+    if (!user)
+      return {
+        success: false,
+        message: 'Você precisa estar logado para votar.',
+      }
+    const result = await voteService.addVote(id, user.id)
     if (result.success) {
-      const newVotedDishes = [...votedDishes, id]
-      setVotedDishes(newVotedDishes)
-      setVotedDishesInStorage(eventType, newVotedDishes)
+      setVotedDishes((prev) => [...prev, id])
     }
     return result
   }
 
   const resetDishes = async () => {
-    const result = await api.resetDishes(eventType)
-    if (result.success) {
-      setVotedDishes([])
-      setVotedDishesInStorage(eventType, [])
-    }
-    return result
+    return await dishService.deleteDishesByParty(eventType)
   }
-
-  const winningDishId =
-    dishes.length > 0 && dishes[0].votes > 0 ? dishes[0].id : null
 
   return {
     dishes,
@@ -78,7 +97,7 @@ export const useDishes = (eventType: EventType) => {
     addDish,
     voteForDish,
     resetDishes,
-    winningDishId,
+    winningDishIds,
     isLoading,
   }
 }

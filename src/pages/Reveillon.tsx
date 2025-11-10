@@ -7,6 +7,7 @@ import { useDishes } from '@/hooks/use-dishes'
 import { PartyPopper } from 'lucide-react'
 import { DishCardSkeleton } from '@/components/DishCardSkeleton'
 import { ResetVoting } from '@/components/ResetVoting'
+import { useAuth } from '@/hooks/use-auth'
 
 const ReveillonPage = () => {
   const [newDishName, setNewDishName] = useState('')
@@ -16,9 +17,10 @@ const ReveillonPage = () => {
     addDish,
     voteForDish,
     resetDishes,
-    winningDishId,
+    winningDishIds,
     isLoading,
   } = useDishes('reveillon')
+  const { isAdmin } = useAuth()
   const { toast } = useToast()
 
   const handleSuggestDish = async () => {
@@ -39,6 +41,17 @@ const ReveillonPage = () => {
     })
     if (result.success) {
       setNewDishName('')
+    }
+  }
+
+  const handleVote = async (id: string) => {
+    const result = await voteForDish(id)
+    if (!result.success) {
+      toast({
+        title: 'Atenção',
+        description: result.message,
+        variant: 'destructive',
+      })
     }
   }
 
@@ -108,16 +121,16 @@ const ReveillonPage = () => {
               <DishCard
                 key={dish.id}
                 dish={dish}
-                onVote={voteForDish}
+                onVote={handleVote}
                 isVoted={votedDishes.includes(dish.id)}
-                isWinner={dish.id === winningDishId}
+                isWinner={winningDishIds.includes(dish.id)}
               />
             ))}
           </div>
         )}
       </section>
 
-      {dishes.length > 0 && !isLoading && (
+      {isAdmin && dishes.length > 0 && !isLoading && (
         <ResetVoting onReset={handleReset} eventName="Réveillon" />
       )}
     </div>

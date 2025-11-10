@@ -1,21 +1,29 @@
 import { Link, NavLink, useLocation } from 'react-router-dom'
-import { Menu, UtensilsCrossed } from 'lucide-react'
+import { LogOut, Menu, UtensilsCrossed } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet'
 import { cn } from '@/lib/utils'
 import { useState, useEffect } from 'react'
+import { useAuth } from '@/hooks/use-auth'
+import { supabase } from '@/lib/supabase/client'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 
 export const Header = () => {
   const [isSheetOpen, setIsSheetOpen] = useState(false)
   const location = useLocation()
+  const { user } = useAuth()
   const [theme, setTheme] = useState('natal')
 
   useEffect(() => {
-    if (location.pathname.includes('reveillon')) {
-      setTheme('reveillon')
-    } else {
-      setTheme('natal')
-    }
+    setTheme(location.pathname.includes('reveillon') ? 'reveillon' : 'natal')
   }, [location.pathname])
 
   const navLinkClass = ({ isActive }: { isActive: boolean }) =>
@@ -24,12 +32,6 @@ export const Header = () => {
       isActive
         ? 'text-primary border-b-2 border-primary'
         : 'text-muted-foreground',
-    )
-
-  const mobileNavLinkClass = ({ isActive }: { isActive: boolean }) =>
-    cn(
-      'text-lg font-semibold transition-colors hover:text-primary',
-      isActive ? 'text-primary' : 'text-foreground',
     )
 
   const navLinks = (
@@ -51,6 +53,10 @@ export const Header = () => {
     </>
   )
 
+  const handleLogout = async () => {
+    await supabase.auth.signOut()
+  }
+
   return (
     <header
       className={cn('sticky top-0 z-50 w-full border-b bg-card shadow-sm', {
@@ -65,22 +71,65 @@ export const Header = () => {
             Os Farofeiros
           </span>
         </Link>
-        <nav className="hidden items-center gap-6 text-sm font-medium md:flex">
-          {navLinks}
-        </nav>
-        <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
-          <SheetTrigger asChild>
-            <Button variant="ghost" size="icon" className="md:hidden">
-              <Menu className="h-6 w-6" />
-              <span className="sr-only">Abrir menu</span>
+        <div className="flex items-center gap-4">
+          <nav className="hidden items-center gap-6 text-sm font-medium md:flex">
+            {navLinks}
+          </nav>
+          {user ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  className="relative h-8 w-8 rounded-full"
+                >
+                  <Avatar className="h-8 w-8">
+                    <AvatarImage
+                      src={`https://img.usecurling.com/ppl/thumbnail?seed=${user.id}`}
+                      alt={user.email ?? ''}
+                    />
+                    <AvatarFallback>
+                      {user.email?.[0].toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="w-56" align="end" forceMount>
+                <DropdownMenuLabel className="font-normal">
+                  <div className="flex flex-col space-y-1">
+                    <p className="text-sm font-medium leading-none">
+                      Logado como
+                    </p>
+                    <p className="text-xs leading-none text-muted-foreground truncate">
+                      {user.email}
+                    </p>
+                  </div>
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={handleLogout}>
+                  <LogOut className="mr-2 h-4 w-4" />
+                  <span>Sair</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : (
+            <Button asChild>
+              <Link to="/login">Entrar</Link>
             </Button>
-          </SheetTrigger>
-          <SheetContent side="right">
-            <nav className="grid gap-6 text-lg font-medium mt-8">
-              {navLinks}
-            </nav>
-          </SheetContent>
-        </Sheet>
+          )}
+          <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
+            <SheetTrigger asChild>
+              <Button variant="ghost" size="icon" className="md:hidden">
+                <Menu className="h-6 w-6" />
+                <span className="sr-only">Abrir menu</span>
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="right">
+              <nav className="grid gap-6 text-lg font-medium mt-8">
+                {navLinks}
+              </nav>
+            </SheetContent>
+          </Sheet>
+        </div>
       </div>
     </header>
   )
