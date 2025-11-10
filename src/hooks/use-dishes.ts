@@ -1,107 +1,94 @@
 import { useState, useEffect, useCallback } from 'react'
-import { useAuth } from '@/hooks/use-auth'
+import { EventType, DishWithVotes } from '@/types'
 import {
   getDishesWithVotes,
   addDish as addDishService,
   deleteDishesByParty,
 } from '@/services/dishes'
 import { addVote, getUserVotesForParty } from '@/services/votes'
-import { DishWithVotes, EventType } from '@/types'
+import { useAuth } from './use-auth'
+import { supabase } from '@/lib/supabase/client'
 
 export const useDishes = (partyType: EventType) => {
   const { user } = useAuth()
   const [dishes, setDishes] = useState<DishWithVotes[]>([])
   const [votedDishes, setVotedDishes] = useState<string[]>([])
   const [isLoading, setIsLoading] = useState(true)
-  const [winningDishIds, setWinningDishIds] = useState<string[]>([])
 
-  const fetchDishes = useCallback(async () => {
-    setIsLoading(true)
+  const fetchDishesAndVotes = useCallback(async () => {
+    // Don't set loading to true on refetch for better UX
     const fetchedDishes = await getDishesWithVotes(partyType)
     setDishes(fetchedDishes)
-
-    if (fetchedDishes.length > 0) {
-      const maxVotes = Math.max(...fetchedDishes.map((d) => d.votes || 0))
-      if (maxVotes > 0) {
-        const winners = fetchedDishes
-          .filter((d) => d.votes === maxVotes)
-          .map((d) => d.id as string)
-        setWinningDishIds(winners)
-      } else {
-        setWinningDishIds([])
-      }
-    } else {
-      setWinningDishIds([])
-    }
-
-    setIsLoading(false)
-  }, [partyType])
-
-  const fetchUserVotes = useCallback(async () => {
-    if (user) {
+    if (user?.id) {
       const userVotes = await getUserVotesForParty(user.id, partyType)
       setVotedDishes(userVotes)
     }
-  }, [user, partyType])
+    setIsLoading(false)
+  }, [partyType, user?.id])
 
   useEffect(() => {
-    fetchDishes()
-  }, [fetchDishes])
+    setIsLoading(true)
+    fetchDishesAndVotes()
 
-  useEffect(() => {
-    if (user) {
-      fetchUserVotes()
+    const channel = supabase
+      .channel(`public-dishes-votes-${partyType}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'dishes' },
+        fetchDishesAndVotes,
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'votes' },
+        fetchDishesAndVotes,
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
     }
-  }, [user, fetchUserVotes])
+  }, [fetchDishesAndVotes, partyType])
 
   const addDish = async (name: string) => {
-    if (!user) {
-      return { success: false, message: 'Usuário não autenticado.' }
+    if (!user?.id) {
+      return { success: false, message: 'Usuário não identificado.' }
     }
-    const result = await addDishService(name, partyType, user.id)
-    if (result.success) {
-      await fetchDishes()
-    }
-    return result
+    return await addDishService(name, partyType, user.id)
   }
 
   const voteForDish = async (dishId: string) => {
-    if (!user) {
-      return { success: false, message: 'Usuário não autenticado.' }
+    if (!user?.id) {
+      return { success: false, message: 'Usuário não identificado.' }
     }
     if (votedDishes.includes(dishId)) {
       return { success: false, message: 'Você já votou neste prato.' }
     }
-
     const result = await addVote(dishId, user.id)
-
     if (result.success) {
       setVotedDishes((prev) => [...prev, dishId])
-
-      const newDishes = dishes.map((d) =>
-        d.id === dishId ? { ...d, votes: (d.votes || 0) + 1 } : d,
-      )
-      setDishes(newDishes)
-
-      const maxVotes = Math.max(...newDishes.map((d) => d.votes || 0))
-      if (maxVotes > 0) {
-        const winners = newDishes
-          .filter((d) => d.votes === maxVotes)
-          .map((d) => d.id as string)
-        setWinningDishIds(winners)
-      }
     }
     return result
   }
 
   const resetDishes = async () => {
-    const result = await deleteDishesByParty(partyType)
-    if (result.success) {
-      await fetchDishes()
-      await fetchUserVotes()
-    }
-    return result
+    return await deleteDishesByParty(partyType)
   }
+
+  const winningDishIds =
+    dishes.length > 0 && dishes[0].votes > 0
+      ? dishes
+          .reduce((acc, dish) => {
+            const maxVotes = acc.length > 0 ? acc[0].votes : 0
+            if (dish.votes > maxVotes) {
+              return [dish]
+            }
+            if (dish.votes === maxVotes) {
+              acc.push(dish)
+            }
+            return acc
+          }, [] as DishWithVotes[])
+          .map((d) => d.id)
+      : []
 
   return {
     dishes,

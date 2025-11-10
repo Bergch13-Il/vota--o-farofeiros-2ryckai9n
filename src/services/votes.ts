@@ -14,9 +14,12 @@ export const addVote = async (
     if (error.code === '23505') {
       return { success: false, message: 'Você já votou neste prato.' }
     }
-    return { success: false, message: error.message }
+    return {
+      success: false,
+      message: 'Ocorreu um erro ao votar. Tente novamente.',
+    }
   }
-  return { success: true, message: 'Voto computado!' }
+  return { success: true, message: 'Voto computado com sucesso!' }
 }
 
 export const getUserVotesForParty = async (
