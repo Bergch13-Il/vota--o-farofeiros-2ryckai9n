@@ -15,16 +15,104 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      dishes: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          party_type: Database['public']['Enums']['party_type']
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          party_type: Database['public']['Enums']['party_type']
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          party_type?: Database['public']['Enums']['party_type']
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          role: Database['public']['Enums']['user_role']
+          user_id: string
+        }
+        Insert: {
+          role?: Database['public']['Enums']['user_role']
+          user_id: string
+        }
+        Update: {
+          role?: Database['public']['Enums']['user_role']
+          user_id?: string
+        }
+        Relationships: []
+      }
+      votes: {
+        Row: {
+          created_at: string
+          dish_id: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          dish_id: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          dish_id?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'votes_dish_id_fkey'
+            columns: ['dish_id']
+            isOneToOne: false
+            referencedRelation: 'dishes'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'votes_dish_id_fkey'
+            columns: ['dish_id']
+            isOneToOne: false
+            referencedRelation: 'dishes_with_votes'
+            referencedColumns: ['id']
+          },
+        ]
+      }
     }
     Views: {
-      [_ in never]: never
+      dishes_with_votes: {
+        Row: {
+          created_at: string | null
+          id: string | null
+          name: string | null
+          party_type: Database['public']['Enums']['party_type'] | null
+          user_id: string | null
+          votes: number | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
-      [_ in never]: never
+      get_user_role: {
+        Args: { p_user_id: string }
+        Returns: Database['public']['Enums']['user_role']
+      }
     }
     Enums: {
-      [_ in never]: never
+      party_type: 'natal' | 'reveillon'
+      user_role: 'user' | 'admin'
     }
     CompositeTypes: {
       [_ in never]: never
@@ -151,6 +239,9 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      party_type: ['natal', 'reveillon'],
+      user_role: ['user', 'admin'],
+    },
   },
 } as const

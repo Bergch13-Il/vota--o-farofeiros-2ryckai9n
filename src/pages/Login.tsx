@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { supabase } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -13,6 +12,7 @@ import {
 } from '@/components/ui/card'
 import { useToast } from '@/components/ui/use-toast'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { useAuth } from '@/hooks/use-auth'
 
 const LoginPage = () => {
   const [email, setEmail] = useState('')
@@ -20,13 +20,11 @@ const LoginPage = () => {
   const [loading, setLoading] = useState(false)
   const navigate = useNavigate()
   const { toast } = useToast()
+  const { signIn, signUp } = useAuth()
 
   const handleLogin = async () => {
     setLoading(true)
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    })
+    const { error } = await signIn(email, password)
     if (error) {
       toast({
         title: 'Erro no login',
@@ -45,13 +43,7 @@ const LoginPage = () => {
 
   const handleSignUp = async () => {
     setLoading(true)
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: window.location.origin,
-      },
-    })
+    const { error } = await signUp(email, password)
     if (error) {
       toast({
         title: 'Erro no cadastro',
@@ -69,7 +61,7 @@ const LoginPage = () => {
 
   return (
     <div className="flex items-center justify-center min-h-[calc(100vh-8rem)]">
-      <Tabs defaultValue="login" className="w-[400px]">
+      <Tabs defaultValue="login" className="w-full max-w-sm">
         <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="login">Entrar</TabsTrigger>
           <TabsTrigger value="signup">Cadastrar</TabsTrigger>
@@ -88,6 +80,7 @@ const LoginPage = () => {
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
+                  placeholder="seu@email.com"
                 />
               </div>
               <div className="space-y-2">
@@ -125,6 +118,7 @@ const LoginPage = () => {
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
+                  placeholder="seu@email.com"
                 />
               </div>
               <div className="space-y-2">

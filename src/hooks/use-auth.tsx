@@ -7,14 +7,17 @@ import {
 } from 'react'
 import { User, Session } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase/client'
-import { getUserRole } from '@/services/users'
 import { UserRole } from '@/types'
+import { getUserRole } from '@/services/users'
 
 interface AuthContextType {
   user: User | null
   session: Session | null
-  role: UserRole
+  userRole: UserRole | null
   isAdmin: boolean
+  signUp: (email: string, password: string) => Promise<{ error: any }>
+  signIn: (email: string, password: string) => Promise<{ error: any }>
+  signOut: () => Promise<{ error: any }>
   loading: boolean
 }
 
@@ -31,18 +34,13 @@ export const useAuth = () => {
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null)
   const [session, setSession] = useState<Session | null>(null)
-  const [role, setRole] = useState<UserRole>('user')
+  const [userRole, setUserRole] = useState<UserRole | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const fetchRole = async (currentUser: User | null) => {
-      if (currentUser) {
-        const userRole = await getUserRole(currentUser.id)
-        setRole(userRole || 'user')
-      } else {
-        setRole('user')
-      }
-      setLoading(false)
+    const fetchUserRole = async (userId: string) => {
+      const role = await getUserRole(userId)
+      setUserRole(role)
     }
 
     const {
@@ -51,24 +49,65 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setSession(session)
       const currentUser = session?.user ?? null
       setUser(currentUser)
-      fetchRole(currentUser)
+      if (currentUser) {
+        fetchUserRole(currentUser.id)
+      } else {
+        setUserRole(null)
+      }
+      setLoading(false)
     })
 
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session)
       const currentUser = session?.user ?? null
       setUser(currentUser)
-      fetchRole(currentUser)
+      if (currentUser) {
+        fetchUserRole(currentUser.id).finally(() => setLoading(false))
+      } else {
+        setLoading(false)
+      }
     })
 
     return () => subscription.unsubscribe()
   }, [])
 
+  const signUp = async (email: string, password: string) => {
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        emailRedirectTo: window.location.origin,
+      },
+    })
+    return { error }
+  }
+
+  const signIn = async (email: string, password: string) => {
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    })
+    return { error }
+  }
+
+  const signOut = async () => {
+    const { error } = await supabase.auth.signOut()
+    if (!error) {
+      setUser(null)
+      setSession(null)
+      setUserRole(null)
+    }
+    return { error }
+  }
+
   const value = {
     user,
     session,
-    role,
-    isAdmin: role === 'admin',
+    userRole,
+    isAdmin: userRole === 'admin',
+    signUp,
+    signIn,
+    signOut,
     loading,
   }
 

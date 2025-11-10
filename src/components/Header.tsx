@@ -5,7 +5,6 @@ import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet'
 import { cn } from '@/lib/utils'
 import { useState, useEffect } from 'react'
 import { useAuth } from '@/hooks/use-auth'
-import { supabase } from '@/lib/supabase/client'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import {
   DropdownMenu,
@@ -19,7 +18,7 @@ import {
 export const Header = () => {
   const [isSheetOpen, setIsSheetOpen] = useState(false)
   const location = useLocation()
-  const { user } = useAuth()
+  const { user, signOut } = useAuth()
   const [theme, setTheme] = useState('natal')
 
   useEffect(() => {
@@ -54,7 +53,7 @@ export const Header = () => {
   )
 
   const handleLogout = async () => {
-    await supabase.auth.signOut()
+    await signOut()
   }
 
   return (
