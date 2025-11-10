@@ -3,6 +3,14 @@ import { Button } from '@/components/ui/button'
 import { Crown, ThumbsUp } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { DishWithVotes } from '@/types'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { getAvatarUrl } from '@/lib/avatar'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
 
 interface DishCardProps {
   dish: DishWithVotes
@@ -30,9 +38,29 @@ export const DishCard = ({
         </div>
       )}
       <CardHeader>
-        <CardTitle className="text-xl font-bold text-center font-display">
+        <CardTitle className="text-xl font-bold text-center font-display pt-8">
           {dish.name}
         </CardTitle>
+        {dish.user_id && (
+          <div className="absolute top-2 left-2">
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Avatar className="h-8 w-8 border-2 border-background">
+                    <AvatarImage
+                      src={getAvatarUrl(dish.user_id)}
+                      alt="Sugestão de usuário"
+                    />
+                    <AvatarFallback>{dish.name[0]}</AvatarFallback>
+                  </Avatar>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Sugerido por um farofeiro!</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
+        )}
       </CardHeader>
       <CardContent className="flex flex-col items-center gap-4">
         <div className="text-5xl font-bold text-primary">{dish.votes}</div>

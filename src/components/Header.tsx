@@ -14,6 +14,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { getAvatarUrl } from '@/lib/avatar'
 
 export const Header = () => {
   const [isSheetOpen, setIsSheetOpen] = useState(false)
@@ -85,8 +86,8 @@ export const Header = () => {
                 >
                   <Avatar className="h-8 w-8">
                     <AvatarImage
-                      src={`https://img.usecurling.com/ppl/thumbnail?seed=${user.id}`}
-                      alt={user.email ?? ''}
+                      src={getAvatarUrl(user.id)}
+                      alt={user.email ?? 'User avatar'}
                     />
                     <AvatarFallback>
                       {user.email?.[0].toUpperCase()}
