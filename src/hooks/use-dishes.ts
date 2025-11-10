@@ -28,9 +28,10 @@ export const useDishes = () => {
   const fetchDishesAndVotes = useCallback(async () => {
     setIsLoading(true)
     try {
+      const ensuredUser = user ?? (await ensureUser())
       const [dishesData, userVotesData] = await Promise.all([
         getDishesWithVotes(partyType),
-        user ? getUserVotesForParty(user.id, partyType) : Promise.resolve([]),
+        ensuredUser ? getUserVotesForParty(ensuredUser.id, partyType) : [] as string[],
       ])
       setDishes(dishesData)
       setVotedDishes(userVotesData)
@@ -40,6 +41,10 @@ export const useDishes = () => {
       setIsLoading(false)
     }
   }, [user, partyType])
+
+  useEffect(() => {
+    ensureUser()
+  }, [ensureUser])
 
   useEffect(() => {
     fetchDishesAndVotes()

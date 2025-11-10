@@ -77,7 +77,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       await checkUserRole(data.user)
     }
 
-    return data.user ?? null
+    const anonymousUser = data.user ?? null
+
+    if (anonymousUser) {
+      if (!data.session) {
+        const {
+          data: { session: refreshedSession },
+        } = await supabase.auth.getSession()
+        if (refreshedSession) {
+          setSession(refreshedSession)
+        }
+      }
+      await checkUserRole(anonymousUser)
+    }
+
+    return anonymousUser
   }, [user, checkUserRole])
 
   useEffect(() => {
