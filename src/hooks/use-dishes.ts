@@ -15,7 +15,7 @@ export const useDishes = () => {
   const [isLoading, setIsLoading] = useState(true)
   const [partyType, setPartyType] = useState<EventType>('natal')
 
-  const { user } = useAuth()
+  const { user, ensureUser } = useAuth()
   const location = useLocation()
 
   useEffect(() => {
@@ -26,12 +26,11 @@ export const useDishes = () => {
   }, [location.pathname])
 
   const fetchDishesAndVotes = useCallback(async () => {
-    if (!user) return
     setIsLoading(true)
     try {
       const [dishesData, userVotesData] = await Promise.all([
         getDishesWithVotes(partyType),
-        getUserVotesForParty(user.id, partyType),
+        user ? getUserVotesForParty(user.id, partyType) : Promise.resolve([]),
       ])
       setDishes(dishesData)
       setVotedDishes(userVotesData)
@@ -47,10 +46,14 @@ export const useDishes = () => {
   }, [fetchDishesAndVotes])
 
   const addDish = async (name: string) => {
-    if (!user) {
-      return { success: false, message: 'Usuário não identificado.' }
+    const ensuredUser = user ?? (await ensureUser())
+    if (!ensuredUser) {
+      return {
+        success: false,
+        message: 'Não foi possível criar um usuário para registrar o prato.',
+      }
     }
-    const result = await addDishService(name, partyType, user.id)
+    const result = await addDishService(name, partyType, ensuredUser.id)
     if (result.success) {
       await fetchDishesAndVotes()
     }
@@ -58,13 +61,17 @@ export const useDishes = () => {
   }
 
   const voteForDish = async (dishId: string) => {
-    if (!user) {
-      return { success: false, message: 'Usuário não identificado.' }
+    const ensuredUser = user ?? (await ensureUser())
+    if (!ensuredUser) {
+      return {
+        success: false,
+        message: 'Não foi possível criar um usuário para registrar o voto.',
+      }
     }
     if (votedDishes.includes(dishId)) {
       return { success: false, message: 'Você já votou neste prato.' }
     }
-    const result = await addVote(dishId, user.id)
+    const result = await addVote(dishId, ensuredUser.id)
     if (result.success) {
       await fetchDishesAndVotes()
     }

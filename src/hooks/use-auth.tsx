@@ -17,6 +17,7 @@ interface AuthContextType {
   signOut: () => Promise<{ error: any }>
   loading: boolean
   isAdmin: boolean
+  ensureUser: () => Promise<User | null>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -43,6 +44,41 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setIsAdmin(false)
     }
   }, [])
+
+  const ensureUser = useCallback(async () => {
+    if (user) {
+      return user
+    }
+
+    const {
+      data: { session: currentSession },
+      error: sessionError,
+    } = await supabase.auth.getSession()
+
+    if (!sessionError && currentSession?.user) {
+      setSession(currentSession)
+      setUser(currentSession.user)
+      await checkUserRole(currentSession.user)
+      return currentSession.user
+    }
+
+    const { data, error } = await supabase.auth.signInAnonymously()
+    if (error) {
+      console.error('Failed to sign in anonymously:', error)
+      return null
+    }
+
+    if (data.session) {
+      setSession(data.session)
+    }
+
+    if (data.user) {
+      setUser(data.user)
+      await checkUserRole(data.user)
+    }
+
+    return data.user ?? null
+  }, [user, checkUserRole])
 
   useEffect(() => {
     const {
@@ -93,6 +129,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     signOut,
     loading,
     isAdmin,
+    ensureUser,
   }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
