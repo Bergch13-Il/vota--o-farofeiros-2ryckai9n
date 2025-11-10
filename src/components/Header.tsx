@@ -1,4 +1,4 @@
-import { Link, NavLink, useLocation } from 'react-router-dom'
+import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { LogOut, Menu, UtensilsCrossed } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet'
@@ -18,6 +18,7 @@ import {
 export const Header = () => {
   const [isSheetOpen, setIsSheetOpen] = useState(false)
   const location = useLocation()
+  const navigate = useNavigate()
   const { user, signOut } = useAuth()
   const [theme, setTheme] = useState('natal')
 
@@ -54,6 +55,7 @@ export const Header = () => {
 
   const handleLogout = async () => {
     await signOut()
+    navigate('/')
   }
 
   return (
@@ -74,7 +76,7 @@ export const Header = () => {
           <nav className="hidden items-center gap-6 text-sm font-medium md:flex">
             {navLinks}
           </nav>
-          {user ? (
+          {user && !user.is_anonymous ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
@@ -112,7 +114,7 @@ export const Header = () => {
             </DropdownMenu>
           ) : (
             <Button asChild>
-              <Link to="/login">Entrar</Link>
+              <Link to="/login">Admin Login</Link>
             </Button>
           )}
           <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>

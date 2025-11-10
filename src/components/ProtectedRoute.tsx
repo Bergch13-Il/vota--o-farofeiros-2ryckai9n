@@ -1,9 +1,10 @@
-import { Navigate, Outlet } from 'react-router-dom'
+import { Navigate, Outlet, useLocation } from 'react-router-dom'
 import { useAuth } from '@/hooks/use-auth'
 import { Skeleton } from '@/components/ui/skeleton'
 
 export const ProtectedRoute = () => {
   const { user, loading } = useAuth()
+  const location = useLocation()
 
   if (loading) {
     return (
@@ -18,8 +19,8 @@ export const ProtectedRoute = () => {
     )
   }
 
-  if (!user) {
-    return <Navigate to="/login" replace />
+  if (!user || user.is_anonymous) {
+    return <Navigate to="/login" state={{ from: location }} replace />
   }
 
   return <Outlet />

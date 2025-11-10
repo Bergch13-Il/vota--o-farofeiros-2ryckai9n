@@ -10,7 +10,6 @@ import NatalPage from './pages/Natal'
 import ReveillonPage from './pages/Reveillon'
 import LoginPage from './pages/Login'
 import { AuthProvider } from './hooks/use-auth'
-import { ProtectedRoute } from './components/ProtectedRoute'
 
 // ONLY IMPORT AND RENDER WORKING PAGES, NEVER ADD PLACEHOLDER COMPONENTS OR PAGES IN THIS FILE
 // AVOID REMOVING ANY CONTEXT PROVIDERS FROM THIS FILE (e.g. TooltipProvider, Toaster, Sonner)
@@ -27,10 +26,8 @@ const App = () => (
           <Route element={<Layout />}>
             <Route path="/" element={<Index />} />
             <Route path="/login" element={<LoginPage />} />
-            <Route element={<ProtectedRoute />}>
-              <Route path="/natal" element={<NatalPage />} />
-              <Route path="/reveillon" element={<ReveillonPage />} />
-            </Route>
+            <Route path="/natal" element={<NatalPage />} />
+            <Route path="/reveillon" element={<ReveillonPage />} />
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>
