@@ -116,7 +116,7 @@ export const Header = () => {
         <Link to="/" className="flex items-center gap-2">
           <UtensilsCrossed className="h-7 w-7 text-primary" />
           <span className="font-logo text-2xl font-bold text-primary">
-            Os Farofeiros
+            Os Farofeiros - Edição Arroio
           </span>
         </Link>
         <div className="flex items-center gap-4">
