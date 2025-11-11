@@ -3,7 +3,7 @@ export interface Dish {
   name: string
   party_type: EventType
   created_at: string
-  user_id: string
+  user_id: string | null
 }
 
 export interface DishWithVotes extends Dish {
@@ -13,7 +13,7 @@ export interface DishWithVotes extends Dish {
 export interface Vote {
   id: string
   dish_id: string
-  user_id: string
+  user_id: string | null
   created_at: string
 }
 

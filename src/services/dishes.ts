@@ -21,11 +21,11 @@ export const getDishesWithVotes = async (
 export const addDish = async (
   name: string,
   partyType: EventType,
-  userId: string,
+  userId?: string | null,
 ): Promise<{ success: boolean; message: string }> => {
   const { error } = await supabase
     .from('dishes')
-    .insert([{ name, party_type: partyType, user_id: userId }])
+    .insert([{ name, party_type: partyType, user_id: userId || null }])
 
   if (error) {
     console.error('Error adding dish:', error)

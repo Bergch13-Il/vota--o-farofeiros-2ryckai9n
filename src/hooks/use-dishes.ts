@@ -51,14 +51,9 @@ export const useDishes = () => {
   }, [fetchDishesAndVotes])
 
   const addDish = async (name: string) => {
-    const ensuredUser = user ?? (await ensureUser())
-    if (!ensuredUser) {
-      return {
-        success: false,
-        message: 'Não foi possível criar um usuário para registrar o prato.',
-      }
-    }
-    const result = await addDishService(name, partyType, ensuredUser.id)
+    // Allow anonymous dish suggestions without requiring authentication
+    const userId = user?.id || null
+    const result = await addDishService(name, partyType, userId)
     if (result.success) {
       await fetchDishesAndVotes()
     }
